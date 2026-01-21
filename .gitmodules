@@ -1,9 +1,12 @@
 [submodule "omnicore-auth"]
 	path = omnicore-auth
 	url = https://github.com/dre7djib/omnicore-auth
+	branch = main
 [submodule "omnicore-user"]
 	path = omnicore-user
 	url = https://github.com/dre7djib/omnicore-user
+	branch = main
 [submodule "omnicore-product"]
 	path = omnicore-product
 	url = https://github.com/dre7djib/omnicore-product
+	branch = main
