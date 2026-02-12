@@ -1,0 +1,36 @@
+services:
+  omnicore-auth:
+    build:
+      context: ./omnicore-auth
+      dockerfile: Dockerfile
+    ports:
+      - 3003:3003
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${AUTH_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+      - REFRESH_EXPIRES_IN=${REFRESH_EXPIRES_IN}
+  omnicore-user:
+    build:
+      context: ./omnicore-user
+      dockerfile: Dockerfile
+    ports:
+      - 3002:3002
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${USER_PORT}
+      - NODE_ENV=${NODE_ENV}
+  omnicore-product:
+    build:
+      context: ./omnicore-product
+      dockerfile: Dockerfile
+    ports:
+      - 3001:3001
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${PRODUCT_PORT}
+      - NODE_ENV=${NODE_ENV}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
