@@ -15,20 +15,36 @@ services:
     networks:
       - omnicore-network
 
+  # ── One-shot migration & seed runner ────────────────────────────────────────
+  # Runs `prisma migrate deploy` then `node prisma/seed.js`, then exits.
+  # All services wait for this to complete before starting.
+  omnicore-db:
+    build:
+      context: .
+      dockerfile: omnicore-db/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - omnicore-network
+
   omnicore-auth:
     build:
-      context: ./omnicore-auth
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: omnicore-auth/Dockerfile
     ports:
       - ${AUTH_PORT:-3003}:3003
     env_file:
       - ./omnicore-auth/.env
     environment:
-      # Override DATABASE_URL to use the docker db service instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
     depends_on:
       db:
         condition: service_healthy
+      omnicore-db:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3003/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
       interval: 30s
@@ -40,18 +56,19 @@ services:
 
   omnicore-user:
     build:
-      context: ./omnicore-user
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: omnicore-user/Dockerfile
     ports:
       - ${USER_PORT:-3002}:3002
     env_file:
       - ./omnicore-user/.env
     environment:
-      # Override DATABASE_URL to use the docker db service instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
     depends_on:
       db:
         condition: service_healthy
+      omnicore-db:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3002/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
       interval: 30s
@@ -63,18 +80,19 @@ services:
 
   omnicore-product:
     build:
-      context: ./omnicore-product
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: omnicore-product/Dockerfile
     ports:
       - ${PRODUCT_PORT:-3001}:3001
     env_file:
       - ./omnicore-product/.env
     environment:
-      # Override DATABASE_URL to use the docker db service instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
     depends_on:
       db:
         condition: service_healthy
+      omnicore-db:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
       interval: 30s
@@ -84,26 +102,57 @@ services:
     networks:
       - omnicore-network
 
+  omnicore-order:
+    build:
+      context: .
+      dockerfile: omnicore-order/Dockerfile
+    ports:
+      - ${ORDER_PORT:-3004}:3004
+    env_file:
+      - ./omnicore-order/.env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - PRODUCT_SERVICE_URL=http://omnicore-product:3001
+    depends_on:
+      db:
+        condition: service_healthy
+      omnicore-db:
+        condition: service_completed_successfully
+      omnicore-product:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3004/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - omnicore-network
+
   omnicore-gateway:
     build:
-      context: ./omnicore-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: omnicore-gateway/Dockerfile
     ports:
       - ${GATEWAY_PORT:-3000}:3000
     env_file:
       - ./omnicore-gateway/.env
     environment:
-      # Override DATABASE_URL and service URLs to use docker service names instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
       - AUTH_SERVICE_URL=http://omnicore-auth:3003
       - PRODUCT_SERVICE_URL=http://omnicore-product:3001
       - USER_SERVICE_URL=http://omnicore-user:3002
+      - ORDER_SERVICE_URL=http://omnicore-order:3004
     depends_on:
+      omnicore-db:
+        condition: service_completed_successfully
       omnicore-auth:
         condition: service_healthy
       omnicore-user:
         condition: service_healthy
       omnicore-product:
+        condition: service_healthy
+      omnicore-order:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]

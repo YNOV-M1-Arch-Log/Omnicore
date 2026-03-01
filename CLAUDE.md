@@ -4,18 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Structure
 
-This is a monorepo of Git submodules. Each subdirectory is an independent microservice with its own `package.json`, Prisma schema, and database:
+This is an **npm workspace monorepo**. A shared `@omnicore/db` package owns the single Prisma schema, all migrations, and the seed script. Each service imports the Prisma client from `@omnicore/db` — no service maintains its own schema.
 
-| Service | Dir | Internal Port | Docker host port | Module system |
-|---------|-----|--------------|-----------------|---------------|
+| Package / Service | Dir | Internal Port | Docker host port | Module system |
+|-------------------|-----|--------------|-----------------|---------------|
+| Shared DB package | `omnicore-db/` | — | — | CommonJS |
 | API Gateway | `omnicore-gateway/` | 3000 | **3010** | CommonJS |
 | Product Service | `omnicore-product/` | 3001 | 3001 | CommonJS |
 | User Service | `omnicore-user/` | 3002 | 3002 | ESM |
 | Auth Service | `omnicore-auth/` | 3003 | 3003 | ESM |
+| Order Service | `omnicore-order/` | 3004 | 3004 | CommonJS |
 
 > Gateway is mapped to **host port 3010** in Docker because port 3000 may be taken by other local services.
 
-All four are registered Git submodules. All commands below must be run from within the relevant service directory.
+`npm install` must be run from the **root** (not inside a service dir) to keep the single `package-lock.json` up to date.
 
 ## Common Commands (per service)
 
@@ -27,14 +29,20 @@ npm run test:unit        # Tests with coverage (gateway, product)
 npm run test:watch       # Tests in watch mode (gateway, product)
 npm run lint             # ESLint check (gateway, product)
 npm run lint:fix         # Auto-fix ESLint (gateway, product)
-npm run prisma:migrate   # Run/create DB migrations
-npm run prisma:generate  # Regenerate Prisma Client
-npm run prisma:studio    # Open Prisma Studio GUI
+```
+
+**`@omnicore/db` scripts (run from `omnicore-db/` or with `--workspace`):**
+```bash
+npm run prisma:migrate          --workspace=@omnicore/db   # Create a new migration
+npm run prisma:migrate:deploy   --workspace=@omnicore/db   # Apply migrations
+npm run prisma:generate         --workspace=@omnicore/db   # Regenerate Prisma Client
+npm run prisma:studio           --workspace=@omnicore/db   # Open Prisma Studio GUI
+npm run seed                    --workspace=@omnicore/db   # Seed roles
 ```
 
 **Gateway-only scripts:**
 ```bash
-npm run seed:roles            # Seed Principal/Tenant/User roles (run once after first migration)
+npm run seed:roles            # Seed roles (wrapper around @omnicore/db seed — kept for convenience)
 npm run bootstrap:principal   # Create the first Principal user: node scripts/bootstrap-principal.js <email>
 npm run security:audit        # Audit dependencies
 ```
@@ -46,7 +54,7 @@ npm run test:integration      # Newman/Postman integration tests against live se
 
 ## Running with Docker Compose
 
-A `docker-compose.yml` at the root starts **all 5 containers** (db + 4 services) together.
+A `docker-compose.yml` at the root starts **all 7 containers** (postgres db + omnicore-db migration runner + 5 services) together.
 
 ```bash
 cp env-exemple .env        # edit POSTGRES_PASSWORD; set GATEWAY_PORT if 3000 is taken
@@ -59,26 +67,16 @@ The root `.env` only needs postgres credentials and optional port overrides. Eac
 
 ### First-time setup after `docker compose up`
 
-The containers start healthy but the database is empty. Run these once:
+**Migrations and seeding now run automatically.** The `omnicore-db` container runs `prisma migrate deploy && node prisma/seed.js` and then exits. All other services wait for it to complete (`condition: service_completed_successfully`) before starting.
+
+After all containers are healthy, the only manual step is bootstrapping the first Principal:
 
 ```bash
-# 1. Apply migrations for all services
-docker exec omnicore-omnicore-auth-1    npx prisma migrate deploy
-docker exec omnicore-omnicore-user-1    npx prisma migrate deploy
-docker exec omnicore-omnicore-product-1 npx prisma migrate deploy
+# 1. Sign up a user via /auth/signup (gateway must be healthy first)
 
-# 2. Seed roles (Principal / Tenant / User) — run from gateway container
-docker exec omnicore-omnicore-gateway-1 node scripts/seed-roles.js
-
-# 3. Sign up a user via /auth/signup, then bootstrap them as Principal
+# 2. Bootstrap the Principal role for that user
 docker exec omnicore-omnicore-gateway-1 node scripts/bootstrap-principal.js admin@example.com
 ```
-
-> **Note**: if `prisma migrate deploy` fails with "datasource.url required in config file", copy `prisma.config.ts` into the container first:
-> ```bash
-> docker cp omnicore-auth/prisma.config.ts omnicore-omnicore-auth-1:/app/prisma.config.ts
-> ```
-> This happens when the Docker image was built before `prisma.config.ts` was added.
 
 ## Environment Variables (per-service dev)
 
@@ -162,9 +160,14 @@ Full RBAC coverage — **verified by 86-check automated test** (all passing):
 
 **Tenant country-scoping requires**: the Tenant's `auth_users.country_id` column must be populated. The gateway reads `countryId` from the JWT (set at login time from `auth_users`). If it's null, all country-scoped write routes return 403.
 
-### Shared Prisma Schema
+### Shared Prisma Schema (`@omnicore/db`)
 
-All four services share an identical `prisma/schema.prisma` covering all models (Country, Product, CountryProduct, ProductImage, Role, AuthUser, AuthSession, User, UserRole, UserAddress, UserPreference, UserAuditLog). **Source of truth is `omnicore-product/prisma/schema.prisma`** — when modifying models, update that file first then copy it to the other three services.
+There is **one** schema file: `omnicore-db/prisma/schema.prisma`. It covers all models for the entire platform (Country, Product, CountryProduct, ProductImage, Role, AuthUser, AuthSession, User, UserRole, UserAddress, UserPreference, UserAuditLog, Order, OrderItem).
+
+- To add a model: edit `omnicore-db/prisma/schema.prisma`, then run `npm run prisma:migrate --workspace=@omnicore/db -- --name <migration_name>`
+- To regenerate the client (after a schema change): `npm run prisma:generate --workspace=@omnicore/db`
+- All services automatically use the generated client via `require('@omnicore/db')` / `import … from '@omnicore/db'`
+- The per-service `prisma/` directories are now obsolete stubs — do not run `prisma generate` inside individual services
 
 ### Data Model Key Points
 

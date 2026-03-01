@@ -1,0 +1,13 @@
+{
+  "name": "omnicore",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "omnicore-db",
+    "omnicore-auth",
+    "omnicore-user",
+    "omnicore-product",
+    "omnicore-gateway",
+    "omnicore-order"
+  ]
+}

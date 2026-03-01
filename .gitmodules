@@ -14,3 +14,9 @@
 	path = omnicore-gateway
 	url = https://github.com/dre7djib/omnicore-gateway
 	branch = main
+[submodule "omnicore-db"]
+	path = omnicore-db
+	url = https://github.com/YNOV-M1-Arch-Log/omnicore-db.git
+[submodule "omnicore-order"]
+	path = omnicore-order
+	url = https://github.com/YNOV-M1-Arch-Log/omnicore-order.git
