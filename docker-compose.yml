@@ -129,6 +129,33 @@ services:
     networks:
       - omnicore-network
 
+  omnicore-payment:
+    build:
+      context: .
+      dockerfile: omnicore-payment/Dockerfile
+    ports:
+      - ${PAYMENT_PORT:-3005}:3005
+    env_file:
+      - ./omnicore-payment/.env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
+      - ORDER_SERVICE_URL=http://omnicore-order:3004
+    depends_on:
+      db:
+        condition: service_healthy
+      omnicore-db:
+        condition: service_completed_successfully
+      omnicore-order:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3005/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - omnicore-network
+
   omnicore-gateway:
     build:
       context: .
@@ -143,6 +170,7 @@ services:
       - PRODUCT_SERVICE_URL=http://omnicore-product:3001
       - USER_SERVICE_URL=http://omnicore-user:3002
       - ORDER_SERVICE_URL=http://omnicore-order:3004
+      - PAYMENT_SERVICE_URL=http://omnicore-payment:3005
     depends_on:
       omnicore-db:
         condition: service_completed_successfully
@@ -153,6 +181,8 @@ services:
       omnicore-product:
         condition: service_healthy
       omnicore-order:
+        condition: service_healthy
+      omnicore-payment:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]

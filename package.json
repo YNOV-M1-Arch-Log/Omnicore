@@ -8,6 +8,7 @@
     "omnicore-user",
     "omnicore-product",
     "omnicore-gateway",
-    "omnicore-order"
+    "omnicore-order",
+    "omnicore-payment"
   ]
 }
