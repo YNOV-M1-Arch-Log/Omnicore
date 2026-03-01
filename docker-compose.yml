@@ -21,12 +21,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - ${AUTH_PORT:-3003}:3003
+    env_file:
+      - ./omnicore-auth/.env
     environment:
+      # Override DATABASE_URL to use the docker db service instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
-      - PORT=3003
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
-      - REFRESH_EXPIRES_IN=${REFRESH_EXPIRES_IN:-30d}
     depends_on:
       db:
         condition: service_healthy
@@ -45,10 +44,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - ${USER_PORT:-3002}:3002
+    env_file:
+      - ./omnicore-user/.env
     environment:
+      # Override DATABASE_URL to use the docker db service instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
-      - PORT=3002
-      - NODE_ENV=${NODE_ENV:-production}
     depends_on:
       db:
         condition: service_healthy
@@ -67,13 +67,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - ${PRODUCT_PORT:-3001}:3001
+    env_file:
+      - ./omnicore-product/.env
     environment:
+      # Override DATABASE_URL to use the docker db service instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
-      - PORT=3001
-      - NODE_ENV=${NODE_ENV:-production}
-      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
-      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
-      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     depends_on:
       db:
         condition: service_healthy
@@ -92,12 +90,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - ${GATEWAY_PORT:-3000}:3000
+    env_file:
+      - ./omnicore-gateway/.env
     environment:
+      # Override DATABASE_URL and service URLs to use docker service names instead of localhost
       - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
-      - PORT=3000
-      - NODE_ENV=${NODE_ENV:-production}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRATION=${JWT_EXPIRATION:-1h}
       - AUTH_SERVICE_URL=http://omnicore-auth:3003
       - PRODUCT_SERVICE_URL=http://omnicore-product:3001
       - USER_SERVICE_URL=http://omnicore-user:3002
