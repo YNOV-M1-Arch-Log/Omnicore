@@ -1,36 +1,125 @@
 services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-omnicore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omnicore}
+      POSTGRES_DB: ${POSTGRES_DB:-omnicore}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omnicore}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - omnicore-network
+
   omnicore-auth:
     build:
       context: ./omnicore-auth
       dockerfile: Dockerfile
     ports:
-      - 3003:3003
+      - ${AUTH_PORT:-3003}:3003
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - PORT=${AUTH_PORT}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - PORT=3003
       - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
-      - REFRESH_EXPIRES_IN=${REFRESH_EXPIRES_IN}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
+      - REFRESH_EXPIRES_IN=${REFRESH_EXPIRES_IN:-30d}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3003/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - omnicore-network
+
   omnicore-user:
     build:
       context: ./omnicore-user
       dockerfile: Dockerfile
     ports:
-      - 3002:3002
+      - ${USER_PORT:-3002}:3002
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - PORT=${USER_PORT}
-      - NODE_ENV=${NODE_ENV}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - PORT=3002
+      - NODE_ENV=${NODE_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3002/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - omnicore-network
+
   omnicore-product:
     build:
       context: ./omnicore-product
       dockerfile: Dockerfile
     ports:
-      - 3001:3001
+      - ${PRODUCT_PORT:-3001}:3001
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - PORT=${PRODUCT_PORT}
-      - NODE_ENV=${NODE_ENV}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - PORT=3001
+      - NODE_ENV=${NODE_ENV:-production}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - omnicore-network
+
+  omnicore-gateway:
+    build:
+      context: ./omnicore-gateway
+      dockerfile: Dockerfile
+    ports:
+      - ${GATEWAY_PORT:-3000}:3000
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - PORT=3000
+      - NODE_ENV=${NODE_ENV:-production}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-1h}
+      - AUTH_SERVICE_URL=http://omnicore-auth:3003
+      - PRODUCT_SERVICE_URL=http://omnicore-product:3001
+      - USER_SERVICE_URL=http://omnicore-user:3002
+    depends_on:
+      omnicore-auth:
+        condition: service_healthy
+      omnicore-user:
+        condition: service_healthy
+      omnicore-product:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - omnicore-network
+
+volumes:
+  postgres_data:
+
+networks:
+  omnicore-network:
+    driver: bridge
