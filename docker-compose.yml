@@ -8,7 +8,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omnicore}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zaraomni}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,7 +23,7 @@ services:
       context: .
       dockerfile: omnicore-db/Dockerfile
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
     depends_on:
       db:
         condition: service_healthy
@@ -39,7 +39,7 @@ services:
     env_file:
       - ./omnicore-auth/.env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
     depends_on:
       db:
         condition: service_healthy
@@ -63,7 +63,7 @@ services:
     env_file:
       - ./omnicore-user/.env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
     depends_on:
       db:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
     env_file:
       - ./omnicore-product/.env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
     depends_on:
       db:
         condition: service_healthy
@@ -111,7 +111,7 @@ services:
     env_file:
       - ./omnicore-order/.env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
       - PRODUCT_SERVICE_URL=http://omnicore-product:3001
     depends_on:
       db:
@@ -138,7 +138,7 @@ services:
     env_file:
       - ./omnicore-gateway/.env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-omnicore}:${POSTGRES_PASSWORD:-omnicore}@db:5432/${POSTGRES_DB:-omnicore}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
       - AUTH_SERVICE_URL=http://omnicore-auth:3003
       - PRODUCT_SERVICE_URL=http://omnicore-product:3001
       - USER_SERVICE_URL=http://omnicore-user:3002
