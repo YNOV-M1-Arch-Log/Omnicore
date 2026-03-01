@@ -5,14 +5,21 @@ class PaymentRepository {
     return prisma.payment.create({ data });
   }
 
-  findAll(filters = {}) {
+  async findAll(filters = {}) {
     const where = {};
     if (filters.orderId) where.orderId = filters.orderId;
     if (filters.status)  where.status  = filters.status;
-    return prisma.payment.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+
+    const page  = Math.max(1, filters.page  || 1);
+    const limit = Math.min(100, Math.max(1, filters.limit || 20));
+    const skip  = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      prisma.payment.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+      prisma.payment.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
   }
 
   findById(id) {

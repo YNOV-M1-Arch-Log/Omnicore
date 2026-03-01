@@ -54,7 +54,8 @@ class PaymentService {
   }
 
   async getAll(filters = {}) {
-    return paymentRepository.findAll(filters);
+    const result = await paymentRepository.findAll(filters);
+    return { ...result, data: result.data.map((p) => this._sanitize(p)) };
   }
 
   async getById(id) {
@@ -64,7 +65,7 @@ class PaymentService {
       err.status = 404;
       throw err;
     }
-    return payment;
+    return this._sanitize(payment);
   }
 
   async getByOrderId(orderId) {
@@ -74,15 +75,23 @@ class PaymentService {
       err.status = 404;
       throw err;
     }
-    return payment;
+    return this._sanitize(payment);
   }
 
   /**
-   * Issue a full refund via Stripe and update the payment record.
-   * Also transitions the linked order to 'cancelled'.
+   * Issue a full or partial refund via Stripe and update the payment record.
+   * - Full refund (no amount, or amount === payment.amount): status → 'refunded', order → 'cancelled'.
+   * - Partial refund (amount < payment.amount): Stripe partial refund, status stays 'succeeded',
+   *   order is NOT cancelled, refundId is recorded.
    */
-  async refund(id, reason, correlationId) {
-    const payment = await this.getById(id);
+  async refund(id, reason, amount, correlationId) {
+    // Use repo directly to get raw record (stripePaymentIntentId is needed)
+    const payment = await paymentRepository.findById(id);
+    if (!payment) {
+      const err = new Error('Payment not found');
+      err.status = 404;
+      throw err;
+    }
 
     if (payment.status !== 'succeeded') {
       const err = new Error(`Cannot refund a payment in status '${payment.status}'`);
@@ -90,25 +99,38 @@ class PaymentService {
       throw err;
     }
 
-    // Create Stripe refund
-    const refund = await stripe.refunds.create({
+    const paymentAmount = Number(payment.amount);
+    if (amount != null && amount > paymentAmount) {
+      const err = new Error(`Refund amount ${amount} exceeds payment amount ${paymentAmount}`);
+      err.status = 422;
+      throw err;
+    }
+
+    const isPartial = amount != null && amount < paymentAmount;
+
+    const refundParams = {
       payment_intent: payment.stripePaymentIntentId,
       ...(reason && { reason }),
-    });
+      ...(isPartial && { amount: Math.round(amount * 100) }),
+    };
 
-    logger.info({ paymentId: id, refundId: refund.id }, 'Stripe refund created');
+    const stripeRefund = await stripe.refunds.create(refundParams);
+    logger.info({ paymentId: id, refundId: stripeRefund.id, isPartial, amount }, 'Stripe refund created');
 
-    const updated = await paymentRepository.update(id, {
-      status: 'refunded',
-      refundId: refund.id,
+    const updateData = {
+      refundId: stripeRefund.id,
       refundReason: reason || null,
       refundedAt: new Date(),
-    });
+      ...(!isPartial && { status: 'refunded' }),
+    };
 
-    // Cancel the linked order
-    await this._updateOrderStatus(payment.orderId, 'cancelled', 'Payment refunded', correlationId);
+    const updated = await paymentRepository.update(id, updateData);
 
-    return updated;
+    if (!isPartial) {
+      await this._updateOrderStatus(payment.orderId, 'cancelled', 'Payment refunded', correlationId);
+    }
+
+    return this._sanitize(updated);
   }
 
   // ── Webhook handlers ─────────────────────────────────────────────────────
@@ -196,6 +218,17 @@ class PaymentService {
   }
 
   // ── Internal helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Strip stripeClientSecret from any payment that is no longer pending.
+   * The secret is only needed once (frontend passes it to Stripe.js to confirm).
+   * Once the payment resolves it is inert, but returning it in every GET is unnecessary.
+   */
+  _sanitize(payment) {
+    if (!payment || payment.status === 'pending') return payment;
+    const { stripeClientSecret: _omit, ...rest } = payment;
+    return rest;
+  }
 
   async _fetchOrder(orderId, correlationId) {
     try {

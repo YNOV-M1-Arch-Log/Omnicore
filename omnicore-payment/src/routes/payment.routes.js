@@ -70,21 +70,27 @@ router.post(
  *       - in: query
  *         name: status
  *         schema: { type: string, enum: [pending, processing, succeeded, failed, cancelled, refunded] }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
  *     responses:
  *       200:
- *         description: List of payments
+ *         description: Paginated list of payments
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Payment'
+ *               $ref: '#/components/schemas/PaginatedPayments'
  */
 router.get(
   '/',
   [
     query('orderId').optional().isUUID().withMessage('orderId must be a valid UUID'),
     query('status').optional().isIn(VALID_STATUSES).withMessage(`status must be one of: ${VALID_STATUSES.join(', ')}`),
+    query('page').optional().isInt({ min: 1 }).toInt().withMessage('page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).toInt().withMessage('limit must be between 1 and 100'),
     validate,
   ],
   paymentController.getAll,
@@ -155,10 +161,18 @@ router.get(
  * /api/payments/{id}/refund:
  *   post:
  *     tags: [Payments]
- *     summary: Issue a full refund (Principal only)
+ *     summary: Issue a full or partial refund (Principal only)
  *     description: |
- *       Creates a Stripe refund and updates payment status to `refunded`.
- *       Also cancels the linked order and restores stock.
+ *       Creates a Stripe refund.
+ *
+ *       **Full refund** (omit `amount` or set it equal to the payment amount):
+ *       - Payment status → `refunded`
+ *       - Linked order → `cancelled` (stock restored automatically by order service)
+ *
+ *       **Partial refund** (provide `amount` < payment amount):
+ *       - Stripe issues a partial refund for the specified amount
+ *       - Payment status stays `succeeded`; `refundId` is recorded for audit
+ *       - Linked order is NOT cancelled
  *     parameters:
  *       - in: path
  *         name: id
@@ -179,13 +193,14 @@ router.get(
  *       404:
  *         description: Payment not found
  *       422:
- *         description: Payment cannot be refunded in current status
+ *         description: Payment not in succeeded status, or amount exceeds payment total
  */
 router.post(
   '/:id/refund',
   [
     param('id').isUUID().withMessage('Invalid payment ID'),
     body('reason').optional().isIn(VALID_REFUND_REASONS).withMessage(`reason must be one of: ${VALID_REFUND_REASONS.join(', ')}`),
+    body('amount').optional().isFloat({ gt: 0 }).withMessage('amount must be a positive number'),
     validate,
   ],
   paymentController.refund,

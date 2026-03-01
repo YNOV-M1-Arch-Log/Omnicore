@@ -20,6 +20,8 @@ class PaymentController {
       const filters = {};
       if (req.query.orderId) filters.orderId = req.query.orderId;
       if (req.query.status)  filters.status  = req.query.status;
+      if (req.query.page)    filters.page    = req.query.page;
+      if (req.query.limit)   filters.limit   = req.query.limit;
       res.json(await paymentService.getAll(filters));
     } catch (error) {
       logger.error({ err: error }, 'Failed to list payments');
@@ -48,8 +50,9 @@ class PaymentController {
   async refund(req, res, next) {
     try {
       const correlationId = req.correlationId ? req.correlationId() : undefined;
-      const payment = await paymentService.refund(req.params.id, req.body.reason, correlationId);
-      logger.info({ paymentId: payment.id }, 'Payment refunded');
+      const amount = req.body.amount != null ? Number(req.body.amount) : undefined;
+      const payment = await paymentService.refund(req.params.id, req.body.reason, amount, correlationId);
+      logger.info({ paymentId: payment.id, amount }, 'Payment refunded');
       res.json(payment);
     } catch (error) {
       logger.error({ err: error, id: req.params.id }, 'Failed to refund payment');
