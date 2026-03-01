@@ -20,3 +20,6 @@
 [submodule "omnicore-order"]
 	path = omnicore-order
 	url = https://github.com/YNOV-M1-Arch-Log/omnicore-order.git
+[submodule "omnicore-payment"]
+	path = omnicore-payment
+	url = https://github.com/YNOV-M1-Arch-Log/omnicore-payment.git
