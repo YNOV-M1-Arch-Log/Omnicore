@@ -122,26 +122,39 @@ Each service reads its own `.env` for app-level configuration. The `docker-compo
 
 ### `omnicore-auth/.env`
 
+```bash
+cp omnicore-auth/env_exemple omnicore-auth/.env
+```
+
 ```env
 PORT=3003
-DATABASE_URL=postgresql://omnicore:your_password@localhost:5432/omnicore
-JWT_SECRET=your_jwt_secret_min_32_chars
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+JWT_SECRET=change_me
 JWT_EXPIRES_IN=15m
 REFRESH_EXPIRES_IN=30d
 ```
 
 ### `omnicore-user/.env`
 
+```bash
+cp omnicore-user/env_exemple omnicore-user/.env
+```
+
 ```env
 PORT=3002
-DATABASE_URL=postgresql://omnicore:your_password@localhost:5432/omnicore
+NODE_ENV=development
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 ```
 
 ### `omnicore-product/.env`
 
+```bash
+cp omnicore-product/.env.example omnicore-product/.env
+```
+
 ```env
 PORT=3001
-DATABASE_URL=postgresql://omnicore:your_password@localhost:5432/omnicore
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
@@ -151,10 +164,14 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 ### `omnicore-gateway/.env`
 
+```bash
+cp omnicore-gateway/.env.example omnicore-gateway/.env
+```
+
 ```env
 PORT=3000
-DATABASE_URL=postgresql://omnicore:your_password@localhost:5432/omnicore
-JWT_SECRET=your_jwt_secret_min_32_chars   # must match omnicore-auth
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+JWT_SECRET=change_me   # must match omnicore-auth JWT_SECRET exactly
 JWT_EXPIRATION=15m
 AUTH_SERVICE_URL=http://localhost:3003
 PRODUCT_SERVICE_URL=http://localhost:3001
@@ -167,17 +184,27 @@ PAYMENT_SERVICE_URL=http://localhost:3005
 
 ### `omnicore-order/.env`
 
+```bash
+cp omnicore-order/.env.example omnicore-order/.env
+```
+
 ```env
 PORT=3004
-DATABASE_URL=postgresql://omnicore:your_password@localhost:5432/omnicore
+NODE_ENV=development
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 PRODUCT_SERVICE_URL=http://localhost:3001
 ```
 
 ### `omnicore-payment/.env`
 
+```bash
+cp omnicore-payment/.env.example omnicore-payment/.env
+```
+
 ```env
 PORT=3005
-DATABASE_URL=postgresql://omnicore:your_password@localhost:5432/omnicore
+NODE_ENV=development
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 STRIPE_SECRET_KEY=sk_test_your_key_here
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here   # from: stripe listen --print-secret
 ORDER_SERVICE_URL=http://localhost:3004

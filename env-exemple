@@ -9,7 +9,10 @@ POSTGRES_PASSWORD=change_me
 POSTGRES_DB=omnicore
 
 # Optional: override host ports (defaults shown)
-GATEWAY_PORT=3000
+# Note: gateway is mapped to 3010 because port 3000 is often occupied locally
+GATEWAY_PORT=3010
 PRODUCT_PORT=3001
 USER_PORT=3002
 AUTH_PORT=3003
+ORDER_PORT=3004
+PAYMENT_PORT=3005
