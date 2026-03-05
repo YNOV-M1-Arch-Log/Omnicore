@@ -10,5 +10,10 @@
     "omnicore-gateway",
     "omnicore-order",
     "omnicore-payment"
-  ]
+  ],
+  "dependencies": {
+    "cors": "^2.8.6",
+    "crypto": "^1.0.1",
+    "express": "^5.2.1"
+  }
 }

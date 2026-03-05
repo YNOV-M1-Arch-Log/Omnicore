@@ -1,0 +1,1012 @@
+{
+  "info": {
+    "name": "Omnicore — All Services",
+    "_postman_id": "omnicore-collection-v1",
+    "description": "Collection complète pour tous les micro-services Omnicore. Toutes les requêtes passent par le Gateway (port 3000). Après un login réussi, le token JWT est sauvegardé automatiquement dans la variable `token`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "token",   "value": "",                      "type": "string" },
+    { "key": "userId",  "value": "",                      "type": "string" },
+    { "key": "productId","value": "",                     "type": "string" },
+    { "key": "countryId","value": "",                     "type": "string" },
+    { "key": "countryProductId","value": "",              "type": "string" },
+    { "key": "orderId", "value": "",                      "type": "string" },
+    { "key": "paymentId","value": "",                     "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "POST /auth/signup",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/signup", "host": ["{{baseUrl}}"], "path": ["auth","signup"] }
+          }
+        },
+        {
+          "name": "POST /auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('token', json.data.accessToken);",
+                  "}",
+                  "if (json.data && json.data.userId) {",
+                  "  pm.collectionVariables.set('userId', json.data.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] }
+          }
+        },
+        {
+          "name": "POST /auth/refresh",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"<your_refresh_token>\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth","refresh"] }
+          }
+        },
+        {
+          "name": "POST /auth/validate",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{token}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/validate", "host": ["{{baseUrl}}"], "path": ["auth","validate"] }
+          }
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"<your_refresh_token>\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth","logout"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "👥 Roles (Gateway)",
+      "description": "Gestion des rôles — routes locales au Gateway. Require le rôle Principal.",
+      "item": [
+        {
+          "name": "GET /api/roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/roles", "host": ["{{baseUrl}}"], "path": ["api","roles"] }
+          }
+        },
+        {
+          "name": "GET /api/roles/users/:userId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/roles/users/{{userId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","roles","users","{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/roles/assign",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"roleName\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/roles/assign", "host": ["{{baseUrl}}"], "path": ["api","roles","assign"] }
+          }
+        },
+        {
+          "name": "POST /api/roles/revoke",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"roleName\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/roles/revoke", "host": ["{{baseUrl}}"], "path": ["api","roles","revoke"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🧑 Users",
+      "description": "Proxied vers omnicore-user (/users)",
+      "item": [
+        {
+          "name": "POST /api/users",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api","users"] }
+          }
+        },
+        {
+          "name": "GET /api/users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api","users"] }
+          }
+        },
+        {
+          "name": "GET /api/users/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","users","{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/users/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","users","{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/users/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","users","{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔗 User Roles",
+      "description": "Proxied vers omnicore-user (/user-roles)",
+      "item": [
+        {
+          "name": "POST /api/user-roles",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"roleId\": \"<roleId>\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/user-roles", "host": ["{{baseUrl}}"], "path": ["api","user-roles"] }
+          }
+        },
+        {
+          "name": "GET /api/user-roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/user-roles", "host": ["{{baseUrl}}"], "path": ["api","user-roles"] }
+          }
+        },
+        {
+          "name": "GET /api/user-roles/:userId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-roles/{{userId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","user-roles","{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/user-roles/:userId",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": \"<newRoleId>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user-roles/{{userId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","user-roles","{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/user-roles/:userId",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-roles/{{userId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","user-roles","{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🏠 User Addresses",
+      "description": "Proxied vers omnicore-user (/user-addresses)",
+      "item": [
+        {
+          "name": "POST /api/user-addresses",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"street\": \"123 Main St\",\n  \"city\": \"Paris\",\n  \"postalCode\": \"75001\",\n  \"country\": \"FR\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/user-addresses", "host": ["{{baseUrl}}"], "path": ["api","user-addresses"] }
+          }
+        },
+        {
+          "name": "GET /api/user-addresses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/user-addresses", "host": ["{{baseUrl}}"], "path": ["api","user-addresses"] }
+          }
+        },
+        {
+          "name": "GET /api/user-addresses/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-addresses/<addressId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-addresses","<addressId>"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/user-addresses/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Lyon\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user-addresses/<addressId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-addresses","<addressId>"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/user-addresses/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-addresses/<addressId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-addresses","<addressId>"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "⚙️ User Preferences",
+      "description": "Proxied vers omnicore-user (/user-preferences)",
+      "item": [
+        {
+          "name": "POST /api/user-preferences",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"key\": \"theme\",\n  \"value\": \"dark\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/user-preferences", "host": ["{{baseUrl}}"], "path": ["api","user-preferences"] }
+          }
+        },
+        {
+          "name": "GET /api/user-preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/user-preferences", "host": ["{{baseUrl}}"], "path": ["api","user-preferences"] }
+          }
+        },
+        {
+          "name": "GET /api/user-preferences/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-preferences/<prefId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-preferences","<prefId>"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/user-preferences/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"light\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user-preferences/<prefId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-preferences","<prefId>"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/user-preferences/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-preferences/<prefId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-preferences","<prefId>"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📋 User Audit Logs",
+      "description": "Proxied vers omnicore-user (/user-audit-logs)",
+      "item": [
+        {
+          "name": "POST /api/user-audit-logs",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"action\": \"LOGIN\",\n  \"details\": \"User logged in from 192.168.1.1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/user-audit-logs", "host": ["{{baseUrl}}"], "path": ["api","user-audit-logs"] }
+          }
+        },
+        {
+          "name": "GET /api/user-audit-logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/user-audit-logs", "host": ["{{baseUrl}}"], "path": ["api","user-audit-logs"] }
+          }
+        },
+        {
+          "name": "GET /api/user-audit-logs/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-audit-logs/<logId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-audit-logs","<logId>"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/user-audit-logs/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"details\": \"Updated detail\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user-audit-logs/<logId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-audit-logs","<logId>"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/user-audit-logs/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user-audit-logs/<logId>",
+              "host": ["{{baseUrl}}"], "path": ["api","user-audit-logs","<logId>"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🌍 Countries",
+      "description": "Proxied vers omnicore-product (/api/countries)",
+      "item": [
+        {
+          "name": "POST /api/countries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('countryId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"France\",\n  \"countryCode\": \"FR\",\n  \"currency\": \"EUR\",\n  \"isActive\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/countries", "host": ["{{baseUrl}}"], "path": ["api","countries"] }
+          }
+        },
+        {
+          "name": "GET /api/countries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/countries", "host": ["{{baseUrl}}"], "path": ["api","countries"] }
+          }
+        },
+        {
+          "name": "GET /api/countries/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/countries/{{countryId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","countries","{{countryId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/countries/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/countries/{{countryId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","countries","{{countryId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/countries/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/countries/{{countryId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","countries","{{countryId}}"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📦 Products",
+      "description": "Proxied vers omnicore-product (/api/products)",
+      "item": [
+        {
+          "name": "POST /api/products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('productId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"T-Shirt Omnicore\",\n  \"description\": \"Un super t-shirt\",\n  \"isActive\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api","products"] }
+          }
+        },
+        {
+          "name": "GET /api/products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api","products"] }
+          }
+        },
+        {
+          "name": "GET /api/products/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/products/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Description mise à jour\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/products/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/products/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/products/:id/images",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/image.jpg\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/images",
+              "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}","images"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/products/:id/images/:imageId/primary",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/images/<imageId>/primary",
+              "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}","images","<imageId>","primary"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/products/images/:imageId",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/images/<imageId>",
+              "host": ["{{baseUrl}}"], "path": ["api","products","images","<imageId>"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🗺️ Country Products",
+      "description": "Proxied vers omnicore-product (/api/country-products). Requiert countryScope middleware (header X-Country ou query countryId).",
+      "item": [
+        {
+          "name": "POST /api/country-products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('countryProductId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"countryId\": \"{{countryId}}\",\n  \"price\": 29.99,\n  \"currency\": \"EUR\",\n  \"quantity\": 100\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/country-products", "host": ["{{baseUrl}}"], "path": ["api","country-products"] }
+          }
+        },
+        {
+          "name": "GET /api/country-products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country-products?countryId={{countryId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","country-products"],
+              "query": [
+                { "key": "countryId", "value": "{{countryId}}" },
+                { "key": "productId", "value": "", "disabled": true },
+                { "key": "isAvailable", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/country-products/country/:countryId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country-products/country/{{countryId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","country-products","country","{{countryId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/country-products/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country-products/{{countryProductId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","country-products","{{countryProductId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/country-products/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 24.99,\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/country-products/{{countryProductId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","country-products","{{countryProductId}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/country-products/:id/stock",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/country-products/{{countryProductId}}/stock",
+              "host": ["{{baseUrl}}"], "path": ["api","country-products","{{countryProductId}}","stock"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/country-products/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country-products/{{countryProductId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","country-products","{{countryProductId}}"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🛒 Orders",
+      "description": "Proxied vers omnicore-order (/api/orders). Le header X-User-Id est injecté par le gateway.",
+      "item": [
+        {
+          "name": "POST /api/orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('orderId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"countryId\": \"{{countryId}}\",\n  \"items\": [\n    {\n      \"countryProductId\": \"{{countryProductId}}\",\n      \"quantity\": 2\n    }\n  ],\n  \"shippingAddress\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"Paris\",\n    \"postalCode\": \"75001\",\n    \"country\": \"FR\"\n  },\n  \"notes\": \"Livraison rapide SVP\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/orders", "host": ["{{baseUrl}}"], "path": ["api","orders"] }
+          }
+        },
+        {
+          "name": "GET /api/orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"], "path": ["api","orders"],
+              "query": [
+                { "key": "userId",    "value": "{{userId}}", "disabled": true },
+                { "key": "status",    "value": "PENDING",    "disabled": true },
+                { "key": "countryId", "value": "{{countryId}}", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/orders/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","orders","{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/orders/:id/status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\",\n  \"trackingNumber\": \"TRK-001\",\n  \"shippingProvider\": \"DHL\",\n  \"estimatedDelivery\": \"2026-03-15T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/status",
+              "host": ["{{baseUrl}}"], "path": ["api","orders","{{orderId}}","status"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/orders/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","orders","{{orderId}}"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "💳 Payments",
+      "description": "Proxied vers omnicore-payment (/api/payments). Le header X-User-Id est injecté par le gateway.",
+      "item": [
+        {
+          "name": "POST /api/payments/intent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('paymentId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payments/intent", "host": ["{{baseUrl}}"], "path": ["api","payments","intent"] }
+          }
+        },
+        {
+          "name": "GET /api/payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": ["{{baseUrl}}"], "path": ["api","payments"],
+              "query": [
+                { "key": "orderId", "value": "{{orderId}}", "disabled": true },
+                { "key": "status",  "value": "PENDING",    "disabled": true },
+                { "key": "page",    "value": "1",          "disabled": true },
+                { "key": "limit",   "value": "10",         "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/payments/order/:orderId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/order/{{orderId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","payments","order","{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/payments/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{paymentId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","payments","{{paymentId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/payments/:id/refund",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"requested_by_customer\",\n  \"amount\": 14.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{paymentId}}/refund",
+              "host": ["{{baseUrl}}"], "path": ["api","payments","{{paymentId}}","refund"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔔 Webhooks",
+      "description": "Proxied vers omnicore-payment. Pas d'auth — vérification de signature Stripe en interne.",
+      "item": [
+        {
+          "name": "POST /webhooks/stripe",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",   "value": "application/json" },
+              { "key": "stripe-signature","value": "<stripe_signature>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"pi_xxx\",\n      \"amount\": 2999,\n      \"currency\": \"eur\"\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/webhooks/stripe", "host": ["{{baseUrl}}"], "path": ["webhooks","stripe"] }
+          }
+        }
+      ]
+    }
+
+  ]
+}

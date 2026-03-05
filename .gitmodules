@@ -23,3 +23,6 @@
 [submodule "omnicore-payment"]
 	path = omnicore-payment
 	url = https://github.com/YNOV-M1-Arch-Log/omnicore-payment.git
+[submodule "omnicore-smtp"]
+	path = omnicore-smtp
+	url = https://github.com/YNOV-M1-Arch-Log/omnicore-smtp
