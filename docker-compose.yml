@@ -95,6 +95,7 @@ services:
       - ./omnicore-product/.env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
+      - JWT_SECRET=${JWT_SECRET}
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
     depends_on:
       db:
@@ -121,6 +122,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-zaraomni}:${POSTGRES_PASSWORD:-zaraomni}@db:5432/${POSTGRES_DB:-zaraomni_db}
       - PRODUCT_SERVICE_URL=http://omnicore-product:3001
+      - JWT_SECRET=${JWT_SECRET}
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
     depends_on:
       db:
