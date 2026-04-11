@@ -34,23 +34,23 @@ jobs:
         run: npm run prisma:generate -w @omnicore/db
 
       # Services that have lint
-      - name: Lint — gateway
+      - name: Lint - gateway
         run: npm run lint -w omnicore-gateway
 
-      - name: Lint — product
+      - name: Lint - product
         run: npm run lint -w omnicore-product
 
-      - name: Lint — order
+      - name: Lint - order
         run: npm run lint -w omnicore-order
 
-      - name: Lint — payment
+      - name: Lint - payment
         run: npm run lint -w omnicore-payment
 
       # Services that have unit tests
-      - name: Tests — gateway
+      - name: Tests - gateway
         run: npm run test:unit -w omnicore-gateway
 
-      - name: Tests — product
+      - name: Tests - product
         run: npm run test:unit -w omnicore-product
 
       # Workspace-level security audit (production deps only)
@@ -62,6 +62,8 @@ jobs:
     name: Docker Build & Scan
     runs-on: ubuntu-latest
     needs: quality
+    env:
+      HAS_DOCKER_CREDS: ${{ secrets.DOCKER_USERNAME != '' }}
 
     steps:
       - name: Checkout root repo + all submodules
@@ -79,14 +81,14 @@ jobs:
       # Docker Scout scan — requires DOCKER_USERNAME + DOCKER_PASSWORD secrets
       # Set them in: repo Settings → Secrets → Actions
       - name: Login to Docker Hub (for Scout)
-        if: ${{ secrets.DOCKER_USERNAME != '' }}
+        if: ${{ env.HAS_DOCKER_CREDS == 'true' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Scan images for HIGH/CRITICAL CVEs
-        if: ${{ secrets.DOCKER_USERNAME != '' }}
+        if: ${{ env.HAS_DOCKER_CREDS == 'true' }}
         run: |
           for service in omnicore-gateway omnicore-auth omnicore-user omnicore-product omnicore-order omnicore-payment omnicore-smtp; do
             echo "▶ Scanning $service..."
