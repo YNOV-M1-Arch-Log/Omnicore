@@ -27,31 +27,31 @@ Omnicore follows the **API Gateway + Microservices** pattern. A single gateway i
 
 ```mermaid
 graph TB
-    Client(["Client<br/>(Browser / Mobile / Postman)"])
+    Client(["Client - Browser / Mobile / Postman"])
 
-    subgraph Docker Network — omnicore-network
-        GW["API Gateway<br/>:3010 → :3000<br/>JWT · RBAC · Rate limit · Proxy"]
+    subgraph DockerNet["Docker Network: omnicore-network"]
+        GW["API Gateway\n:3010 to :3000\nJWT, RBAC, Rate limit, Proxy"]
 
         subgraph Services
-            AUTH["omnicore-auth<br/>:3003<br/>ESM"]
-            USER["omnicore-user<br/>:3002<br/>ESM"]
-            PROD["omnicore-product<br/>:3001<br/>CJS"]
-            ORDER["omnicore-order<br/>:3004<br/>CJS"]
-            PAY["omnicore-payment<br/>:3005<br/>CJS"]
-            SMTP["omnicore-smtp<br/>:3006<br/>ESM"]
+            AUTH["omnicore-auth :3003 ESM"]
+            USER["omnicore-user :3002 ESM"]
+            PROD["omnicore-product :3001 CJS"]
+            ORDER["omnicore-order :3004 CJS"]
+            PAY["omnicore-payment :3005 CJS"]
+            SMTP["omnicore-smtp :3006 ESM"]
         end
 
-        DB[("PostgreSQL :5432<br/>Single shared DB")]
-        DBRUN["omnicore-db<br/>Migration runner<br/>(exits after seed)"]
+        DB[("PostgreSQL :5432\nShared DB")]
+        DBRUN["omnicore-db\nMigration runner\nexits after seed"]
     end
 
-    Stripe(["Stripe API<br/>(external)"])
+    Stripe(["Stripe API - external"])
 
     Client -->|"HTTPS :3010"| GW
 
     GW -->|"/auth/*"| AUTH
-    GW -->|"/api/users · addresses · preferences · audit-logs"| USER
-    GW -->|"/api/products · countries · country-products"| PROD
+    GW -->|"/api/users, addresses, preferences"| USER
+    GW -->|"/api/products, countries, country-products"| PROD
     GW -->|"/api/orders"| ORDER
     GW -->|"/api/payments"| PAY
     GW -->|"X-Internal-Service-Token"| AUTH
@@ -61,8 +61,8 @@ graph TB
     GW -->|"X-Internal-Service-Token"| PAY
 
     AUTH -->|"POST /mail/send"| SMTP
-    ORDER -->|"PATCH /api/country-products/:id/stock"| PROD
-    PAY -->|"GET · PATCH /api/orders/:id"| ORDER
+    ORDER -->|"PATCH /country-products/:id/stock"| PROD
+    PAY -->|"GET + PATCH /api/orders/:id"| ORDER
 
     Stripe -->|"Webhook POST /webhooks/stripe"| GW
 
@@ -86,7 +86,7 @@ sequenceDiagram
     participant SVC as Downstream Service
     participant DB as PostgreSQL
 
-    C->>GW: HTTP request + Authorization: Bearer <JWT>
+    C->>GW: HTTP request + Authorization: Bearer [token]
     GW->>GW: 1. Generate correlationId
     GW->>GW: 2. Verify JWT locally (no auth service call)
     GW->>GW: 3. RBAC check (deny-by-default regex)
