@@ -91,19 +91,43 @@ Expected:
 {"status":"OK","service":"omnicore-gateway"}
 ```
 
-### 5. (Optional) Set up Stripe webhook forwarding
+### 5. Set up Stripe webhook forwarding
 
-To test payment flows locally, start the Stripe CLI listener in a separate terminal:
+To enable payment flows locally, start the Stripe CLI listener in a **separate terminal** and keep it running:
 
 ```bash
 stripe listen --forward-to http://localhost:3010/webhooks/stripe
 ```
 
-Copy the printed `whsec_…` value into `omnicore-payment/.env` as `STRIPE_WEBHOOK_SECRET`, then restart the payment container:
+Copy the printed `whsec_…` value into `omnicore-payment/.env` as `STRIPE_WEBHOOK_SECRET`. Then recreate the payment container to pick up the new value (a plain `restart` does not reload env files):
 
 ```bash
-docker compose up -d --no-build omnicore-payment
+docker compose up -d --force-recreate omnicore-payment
 ```
+
+### 6. Run the end-to-end test suite (Newman)
+
+The Postman collection `omnicore-postman-collection.json` covers all endpoints across every service in the correct execution order. It requires Newman and the Stripe listener from step 5.
+
+**Prerequisites:**
+
+```bash
+npm install -g newman   # or: npx newman (no install needed)
+```
+
+**Run (two terminals):**
+
+```bash
+# Terminal 1 — keep Stripe listener running
+stripe listen --forward-to http://localhost:3010/webhooks/stripe
+
+# Terminal 2 — run the full suite
+npx newman run omnicore-postman-collection.json -e newman-env.json --delay-request 500
+```
+
+The suite executes ~71 requests end-to-end: auth → countries → roles → users → products → country-products → orders → **full Stripe payment flow** (create intent → confirm via Stripe API → webhook fires → payment `succeeded` → order `confirmed`) → advance order to `shipped` → refund. A 🧹 Cleanup folder at the end deletes all test data and restores the Principal role.
+
+Expected result: **0 failures**.
 
 ---
 

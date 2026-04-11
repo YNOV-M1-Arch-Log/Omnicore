@@ -9,7 +9,8 @@
     "omnicore-product",
     "omnicore-gateway",
     "omnicore-order",
-    "omnicore-payment"
+    "omnicore-payment",
+    "omnicore-smtp"
   ],
   "dependencies": {
     "cors": "^2.8.6",
