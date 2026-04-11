@@ -138,7 +138,7 @@ erDiagram
 
     Payment {
         uuid id PK
-        uuid orderId FK UK
+        uuid orderId FK "unique"
         string stripePaymentIntentId UK
         string stripeClientSecret
         decimal amount
