@@ -82,6 +82,36 @@
     {
       "key": "stripeSecretKey",
       "value": ""
+    },
+    {
+      "key": "principalToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tenantToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tenantUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demoUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "regularUserId",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -1963,7 +1993,32 @@
       "description": "Proxied vers omnicore-payment. Pas d'auth — vérification de signature Stripe en interne.",
       "item": [
         {
-          "name": "POST /webhooks/stripe",
+          "name": "POST /webhooks/stripe — security: rejects unsigned request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Webhook rejects unsigned request (security check)\", function () {",
+                  "    pm.expect(pm.response.code).to.equal(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error code is MISSING_SIGNATURE or INVALID_SIGNATURE\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error.code).to.be.oneOf([\"MISSING_SIGNATURE\", \"INVALID_SIGNATURE\"]);",
+                  "});",
+                  "",
+                  "pm.test(\"Error shape contains code, message and status\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.have.property(\"code\");",
+                  "    pm.expect(body.error).to.have.property(\"message\");",
+                  "    pm.expect(body.error).to.have.property(\"status\");",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "auth": {
               "type": "noauth"
@@ -1973,10 +2028,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "stripe-signature",
-                "value": "<stripe_signature>"
               }
             ],
             "body": {
@@ -1998,8 +2049,1195 @@
       ]
     },
     {
+      "name": "👥 Role Flows",
+      "description": "End-to-end flows demonstrating what each role can and cannot do. Each sub-folder starts with a login that sets {{token}} for subsequent requests. Run them in order: Principal → Tenant → User.",
+      "item": [
+        {
+          "name": "🔴 Principal Flow — Full Admin",
+          "description": "Principal has unrestricted access to everything: roles, users, countries, products, orders, payments.",
+          "item": [
+            {
+              "name": "1. Login as Principal",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Principal login 200', function() { pm.response.to.have.status(200); });",
+                      "if (json.accessToken) {",
+                      "  pm.collectionVariables.set('principalToken', json.accessToken);",
+                      "  pm.collectionVariables.set('token', json.accessToken);",
+                      "}",
+                      "if (json.refreshToken) {",
+                      "  pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                      "}",
+                      "if (json.user && json.user.id) {",
+                      "  pm.collectionVariables.set('userId', json.user.id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@omnicore.dev\",\n  \"password\": \"Admin@1234\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "2. GET /api/roles → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can list roles', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/roles",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "roles"]
+                }
+              }
+            },
+            {
+              "name": "3. POST /api/countries → 201 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can create country', function() { pm.response.to.have.status(201); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('countryId', json.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Role Flow Country\",\n  \"countryCode\": \"RF\",\n  \"currency\": \"EUR\",\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/countries",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "countries"]
+                }
+              }
+            },
+            {
+              "name": "4. POST /api/products → 201 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can create product', function() { pm.response.to.have.status(201); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('productId', json.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Role Flow Product\",\n  \"description\": \"Created by Principal in role flow\",\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products"]
+                }
+              }
+            },
+            {
+              "name": "5. POST /api/country-products → 201 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can create country-product', function() { pm.response.to.have.status(201); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('countryProductId', json.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"countryId\": \"{{countryId}}\",\n  \"price\": 49.99,\n  \"currency\": \"EUR\",\n  \"quantity\": 200\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/country-products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "country-products"]
+                }
+              }
+            },
+            {
+              "name": "6. GET /api/users → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can list users', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/users",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users"]
+                }
+              }
+            },
+            {
+              "name": "7. GET /api/user-audit-logs → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can read audit logs', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/user-audit-logs",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "user-audit-logs"]
+                }
+              }
+            },
+            {
+              "name": "8a. POST /auth/signup (new Tenant with countryId) → 201 or 409 ✅",
+              "description": "Principal creates a Tenant account. countryId is passed at signup — this is the ONLY way to assign a country since PUT /auth/auth-users is not exposed through the gateway. Accepts 409 on repeat runs.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal creates Tenant account with country (201 first run, 409 repeat)', function() {",
+                      "  pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"demo-role-test@omnicore.dev\",\n  \"password\": \"DemoTest@1234\",\n  \"countryId\": \"{{countryId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/signup",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "signup"]
+                }
+              }
+            },
+            {
+              "name": "8b. POST /auth/login (demo user) → get demoUserId ✅",
+              "description": "Login as demo user to reliably extract userId from JWT (works on first run and repeat runs).",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Demo user login 200', function() { pm.response.to.have.status(200); });",
+                      "var json = pm.response.json();",
+                      "if (json.accessToken) {",
+                      "  try {",
+                      "    var b64 = json.accessToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');",
+                      "    var payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));",
+                      "    if (payload.sub) { pm.collectionVariables.set('demoUserId', payload.sub); }",
+                      "  } catch(e) { console.error('Failed to decode demo JWT', e); }",
+                      "}",
+                      "// Restore Principal token so the next steps still run as Principal",
+                      "pm.collectionVariables.set('token', pm.collectionVariables.get('principalToken'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"demo-role-test@omnicore.dev\",\n  \"password\": \"DemoTest@1234\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "9. POST /api/roles/assign Tenant → 201 ✅",
+              "description": "Assign the Tenant role to the demo user created in step 8.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can assign roles', function() { pm.expect(pm.response.code).to.be.oneOf([201, 200]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userId\": \"{{demoUserId}}\",\n  \"roleName\": \"Tenant\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/roles/assign",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "roles", "assign"]
+                }
+              }
+            },
+            {
+              "name": "10. POST /api/roles/revoke Tenant → 200 ✅",
+              "description": "Principal can also revoke roles.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can revoke roles', function() { pm.expect(pm.response.code).to.be.oneOf([200, 204]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userId\": \"{{demoUserId}}\",\n  \"roleName\": \"Tenant\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/roles/revoke",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "roles", "revoke"]
+                }
+              }
+            },
+            {
+              "name": "11. DELETE /api/country-products/:id → 204 ✅",
+              "description": "Delete the country-product created in step 5 before deleting the product.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can delete country-product', function() { pm.expect(pm.response.code).to.be.oneOf([200, 204]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/country-products/{{countryProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "country-products", "{{countryProductId}}"]
+                }
+              }
+            },
+            {
+              "name": "12. DELETE /api/products/:id → 204 ✅",
+              "description": "Only Principal can delete products.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can delete product', function() { pm.expect(pm.response.code).to.be.oneOf([200, 204]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{productId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{productId}}"]
+                }
+              }
+            },
+            {
+              "name": "13. DELETE /api/countries/:id → 204 ✅",
+              "description": "Principal cleans up the country created in step 3.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Principal can delete country', function() { pm.expect(pm.response.code).to.be.oneOf([200, 204]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/countries/{{countryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "countries", "{{countryId}}"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "🟡 Tenant Flow — Country-Scoped Admin",
+          "description": "Tenant can manage products/stock/orders for their own country. Cannot create countries, delete products, or access other countries.",
+          "item": [
+            {
+              "name": "1. Login as Tenant",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('Tenant login 200', function() { pm.response.to.have.status(200); });",
+                      "if (json.accessToken) {",
+                      "  pm.collectionVariables.set('tenantToken', json.accessToken);",
+                      "  pm.collectionVariables.set('token', json.accessToken);",
+                      "  // Decode JWT payload using Buffer (Node.js/Newman compatible)",
+                      "  try {",
+                      "    var b64 = json.accessToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');",
+                      "    var payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));",
+                      "    if (payload.countryId) {",
+                      "      pm.collectionVariables.set('countryId', payload.countryId);",
+                      "      console.log('Tenant countryId from JWT: ' + payload.countryId);",
+                      "    } else {",
+                      "      console.warn('WARNING: Tenant has no countryId in JWT — country-scoped writes will return 403');",
+                      "    }",
+                      "  } catch(e) { console.error('Failed to decode JWT', e); }",
+                      "}",
+                      "if (json.refreshToken) {",
+                      "  pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                      "}",
+                      "if (json.user && json.user.id) {",
+                      "  pm.collectionVariables.set('tenantUserId', json.user.id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"tenant@omnicore.dev\",\n  \"password\": \"Tenant@1234\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "2. GET /api/countries → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can browse countries', function() { pm.response.to.have.status(200); });",
+                      "// countryId is already set from JWT in step 1 — do NOT override it here"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/countries",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "countries"]
+                }
+              }
+            },
+            {
+              "name": "3. GET /api/products → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can browse products', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products"]
+                }
+              }
+            },
+            {
+              "name": "4. POST /api/products → 201 ✅ (Tenant creates product)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can create product', function() { pm.response.to.have.status(201); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('productId', json.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Tenant Flow Product\",\n  \"description\": \"Created by Tenant in role flow\",\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products"]
+                }
+              }
+            },
+            {
+              "name": "5. POST /api/country-products (own country) → 201 ✅",
+              "description": "Tenant creates a country-product for their own country (countryId from JWT). This is the CP used in all subsequent tenant operations.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can create country-product for own country', function() { pm.response.to.have.status(201); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('countryProductId', json.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"countryId\": \"{{countryId}}\",\n  \"price\": 29.99,\n  \"currency\": \"EUR\",\n  \"quantity\": 100\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/country-products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "country-products"]
+                }
+              }
+            },
+            {
+              "name": "6. GET /api/country-products (own country) → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can browse country-products', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/country-products?countryId={{countryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "country-products"],
+                  "query": [{ "key": "countryId", "value": "{{countryId}}" }]
+                }
+              }
+            },
+            {
+              "name": "7. PUT /api/country-products/:id (own country) → 200 ✅",
+              "description": "Tenant can update price/availability for the country-product created in step 5.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can update country-product price', function() { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"price\": 39.99,\n  \"isAvailable\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/country-products/{{countryProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "country-products", "{{countryProductId}}"]
+                }
+              }
+            },
+            {
+              "name": "6. PATCH /api/country-products/:id/stock → 200 ✅",
+              "description": "Tenant can adjust stock for their own country.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can update stock', function() { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 75\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/country-products/{{countryProductId}}/stock",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "country-products", "{{countryProductId}}", "stock"]
+                }
+              }
+            },
+            {
+              "name": "7. POST /api/orders → 201 ✅",
+              "description": "Tenant can place orders.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can create order', function() { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('orderId', json.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"countryId\": \"{{countryId}}\",\n  \"items\": [\n    {\n      \"countryProductId\": \"{{countryProductId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"shippingAddress\": {\n    \"street\": \"10 Rue de la Paix\",\n    \"city\": \"Paris\",\n    \"postalCode\": \"75002\",\n    \"country\": \"FR\"\n  },\n  \"notes\": \"Tenant test order\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "orders"]
+                }
+              }
+            },
+            {
+              "name": "8. PATCH /api/orders/:id/status → confirmed 200 ✅",
+              "description": "Tenant can advance order status.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can update order status', function() { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"confirmed\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders/{{orderId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "orders", "{{orderId}}", "status"]
+                }
+              }
+            },
+            {
+              "name": "9. POST /api/countries (forbidden) → 403 🚫",
+              "description": "Tenant cannot create countries — only Principal can.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant cannot create countries (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Unauthorized Country\",\n  \"countryCode\": \"XX\",\n  \"currency\": \"USD\",\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/countries",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "countries"]
+                }
+              }
+            },
+            {
+              "name": "10. DELETE /api/products/:id (forbidden) → 403 🚫",
+              "description": "Tenant cannot delete products — only Principal can.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant cannot delete products (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{productId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{productId}}"]
+                }
+              }
+            },
+            {
+              "name": "13. GET /api/users → 200 ✅ (Tenant can list users)",
+              "description": "Tenant has read access to users per RBAC matrix.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Tenant can list users (200)', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/users",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "🟢 User Flow — Read-Only + Own Orders",
+          "description": "Regular user can browse products/countries, place and view own orders, create payment intents. Cannot modify catalog, manage users, or access other users' payments.",
+          "item": [
+            {
+              "name": "1. Login as User",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "pm.test('User login 200', function() { pm.response.to.have.status(200); });",
+                      "if (json.accessToken) {",
+                      "  pm.collectionVariables.set('userToken', json.accessToken);",
+                      "  pm.collectionVariables.set('token', json.accessToken);",
+                      "  // Decode JWT payload using Buffer (Node.js/Newman compatible)",
+                      "  try {",
+                      "    var b64 = json.accessToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');",
+                      "    var payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));",
+                      "    if (payload.countryId) {",
+                      "      pm.collectionVariables.set('countryId', payload.countryId);",
+                      "      console.log('User countryId from JWT: ' + payload.countryId);",
+                      "    } else {",
+                      "      console.log('User has no countryId in JWT (normal — countryId is set on auth_users table)');",
+                      "    }",
+                      "  } catch(e) { console.error('Failed to decode JWT', e); }",
+                      "}",
+                      "if (json.refreshToken) {",
+                      "  pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                      "}",
+                      "if (json.user && json.user.id) {",
+                      "  pm.collectionVariables.set('regularUserId', json.user.id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"regular@omnicore.dev\",\n  \"password\": \"Regular@123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "2. GET /api/countries → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User can browse countries', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/countries",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "countries"]
+                }
+              }
+            },
+            {
+              "name": "3. GET /api/products → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User can browse products', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products"]
+                }
+              }
+            },
+            {
+              "name": "4. GET /api/country-products → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User can browse country-products', function() { pm.response.to.have.status(200); });",
+                      "var json = pm.response.json();",
+                      "var items = Array.isArray(json) ? json : (json.data || []);",
+                      "if (items.length > 0) {",
+                      "  pm.collectionVariables.set('countryProductId', items[0].id);",
+                      "  if (items[0].countryId) { pm.collectionVariables.set('countryId', items[0].countryId); }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/country-products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "country-products"]
+                }
+              }
+            },
+            {
+              "name": "5. POST /api/orders → 201 ✅",
+              "description": "Regular users can place orders.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User can create order', function() { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('orderId', json.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"countryId\": \"{{countryId}}\",\n  \"items\": [\n    {\n      \"countryProductId\": \"{{countryProductId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"shippingAddress\": {\n    \"street\": \"5 Avenue des Champs\",\n    \"city\": \"Paris\",\n    \"postalCode\": \"75008\",\n    \"country\": \"FR\"\n  },\n  \"notes\": \"User test order\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "orders"]
+                }
+              }
+            },
+            {
+              "name": "6. GET /api/orders/:id → 200 ✅",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User can view own order', function() { pm.response.to.have.status(200); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "orders", "{{orderId}}"]
+                }
+              }
+            },
+            {
+              "name": "7. POST /api/payments/intent → 201 ✅",
+              "description": "User can create a payment intent for their own pending order.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User can create payment intent', function() { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                      "var json = pm.response.json();",
+                      "if (json.id) { pm.collectionVariables.set('paymentId', json.id); }",
+                      "if (json.stripePaymentIntentId) { pm.collectionVariables.set('stripePaymentIntentId', json.stripePaymentIntentId); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/payments/intent",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "payments", "intent"]
+                }
+              }
+            },
+            {
+              "name": "8. GET /api/payments (forbidden) → 403 🚫",
+              "description": "User cannot list all payments — only Principal and Tenant can.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User cannot list payments (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/payments",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "payments"]
+                }
+              }
+            },
+            {
+              "name": "9. POST /api/countries (forbidden) → 403 🚫",
+              "description": "User cannot create countries.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User cannot create countries (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Unauthorized\",\n  \"countryCode\": \"UN\",\n  \"currency\": \"USD\",\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/countries",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "countries"]
+                }
+              }
+            },
+            {
+              "name": "10. DELETE /api/products/:id (forbidden) → 403 🚫",
+              "description": "User cannot delete products.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User cannot delete products (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{productId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{productId}}"]
+                }
+              }
+            },
+            {
+              "name": "11. PATCH /api/orders/:id/status (forbidden) → 403 🚫",
+              "description": "User cannot change order status — only Principal and Tenant can.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User cannot update order status (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"confirmed\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders/{{orderId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "orders", "{{orderId}}", "status"]
+                }
+              }
+            },
+            {
+              "name": "12. GET /api/users (forbidden) → 403 🚫",
+              "description": "User cannot list users.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User cannot list users (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/users",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users"]
+                }
+              }
+            },
+            {
+              "name": "13. POST /api/payments/:id/refund (forbidden) → 403 🚫",
+              "description": "User cannot issue refunds — only Principal can.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('User cannot refund payments (403)', function() { pm.response.to.have.status(403); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"requested_by_customer\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/payments/{{paymentId}}/refund",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "payments", "{{paymentId}}", "refund"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "🧹 Cleanup",
       "item": [
+        {
+          "name": "0. Re-login as Principal (required for cleanup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.accessToken) {",
+                  "  pm.collectionVariables.set('token', json.accessToken);",
+                  "  pm.collectionVariables.set('principalToken', json.accessToken);",
+                  "}",
+                  "if (json.user && json.user.id) {",
+                  "  pm.collectionVariables.set('userId', json.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@omnicore.dev\",\n  \"password\": \"Admin@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
         {
           "name": "DELETE /api/orders/:id",
           "request": {
